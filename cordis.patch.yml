@@ -1,0 +1,10 @@
+# The layer a profile applies when it lists this bundle: one insert row that
+# mounts the native hooks registry. Per-hook enable/disable and the discovery
+# dirs/modules live in this row's config; see README for the HookSpec contract.
+- insert:
+    - id: native-hooks
+      name: dsh-native-hooks
+      config:
+        disabledHooks: []
+        modules: []
+        timeoutMs: 10000

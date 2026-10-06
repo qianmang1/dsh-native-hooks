@@ -1,0 +1,125 @@
+# dsh-native-hooks
+
+A **native (in-process) hooks framework** for DeepSeek Harness: one registry plugin mounts all seven lifecycle interception points, and hook authors only write a conventionally-exported JS module — or call `ctx.nativeHooks.register()` from another plugin. Functionally on par with the official `@deepseek-ai/dsh-hooks-claude-code` bridge, but hooks run **in-process, typed, and shell-free** with zero runtime dependencies.
+
+> Targets DSH `>=0.2.0-rc.1` (extension points verified against tag `dsh-v0.2.0-rc.2`).
+
+## Event mapping vs the Claude Code bridge
+
+| Claude Code event | This framework | Harness extension point | Deny semantics |
+|---|---|---|---|
+| `SessionStart` | `SessionStart` | `agent/created` | — (context injection) |
+| `UserPromptSubmit` | `UserPromptSubmit` | `agent/pre-step` | rejects the step |
+| `PreToolUse` | `PreToolUse` | `tools/pre-execute` | denies the call (`ask` rides approval) |
+| `PostToolUse` | `PostToolUse` | `tools/post-execute` | rewrites the result into model-visible feedback |
+| `Stop` | `Stop` | `agent/turn-stopping` | `agent.steer()` forces one more turn |
+| `SubagentStart` | `SubagentStart` | `subagent/start` | — (context to the child) |
+| `SubagentStop` | `SubagentStop` | `subagent/end` | observe-only |
+
+Folding matches the bridge: deny is terminal (`deny > ask > allow`), hooks run serially in registration order, and a failing/timed-out hook is fail-open with a warning.
+
+## Three ways to add a hook
+
+### ① Drop a file (recommended, agent-friendly)
+
+Drop a `.mjs` file into `~/.dsh/native-hooks/` (under `$DSH_HOME`) — no YAML edits:
+
+```js
+// ~/.dsh/native-hooks/no-rm-rf.mjs
+export default {
+  id: 'no-rm-rf',
+  event: 'PreToolUse',
+  matcher: /^Bash$/,
+  handle: async (input) => {
+    const command = String(input.toolInput?.command ?? '')
+    if (/rm\s+-rf\s+\//.test(command)) {
+      return { decision: 'deny', reason: 'refusing recursive root deletion' }
+    }
+  },
+}
+```
+
+Discovery dirs are configurable via `dirs` (default `[$DSH_HOME/native-hooks]`).
+
+### ② Declarative `modules`
+
+List exact module paths in the profile's `config.modules` (absolute, `~/…`, `file:` URLs, or relative to `$DSH_HOME`).
+
+### ③ Plugin API (fully typed)
+
+```ts
+export const name = 'my-hook'
+export const inject = ['nativeHooks']
+export function apply(ctx) {
+  ctx.nativeHooks.register({ id: 'my-hook', event: 'PostToolUse', handle: async (input) => { /* … */ } })
+}
+```
+
+Re-registering an `id` replaces the previous spec (warned); `register` returns an unregister function; malformed specs throw synchronously.
+
+### Let an agent write it
+
+The plugin publishes a `native-hooks-development` skill through `ctx.skills` — in a DSH session, just ask "write me a hook that intercepts X" and the agent produces a conforming module into the discovery dir.
+
+## Contract
+
+```ts
+interface HookSpec {
+  id: string
+  event: 'SessionStart' | 'UserPromptSubmit' | 'PreToolUse'
+       | 'PostToolUse' | 'Stop' | 'SubagentStart' | 'SubagentStop'
+  matcher?: RegExp
+  handle: (input: HookInput) => HookResult | undefined | Promise<…>
+}
+
+interface HookInput {
+  event; subject
+  toolName?; toolInput?
+  toolResponse?
+  turn?; signal
+  raw: unknown        // the typed harness payload (ToolExecution, …)
+}
+
+interface HookResult {
+  decision?: 'allow' | 'deny' | 'ask'
+  reason?: string
+  feedback?: string   // PostToolUse deny feedback (model-visible)
+  additionalContext?: string | string[]
+}
+```
+
+Returning `undefined` means "no opinion". `ask` applies to PreToolUse only (via the approval seam; degrades to deny when absent).
+
+## Built-in hook: cordis-patch-guard
+
+Any Edit/Write/MultiEdit landing on a `cordis.patch.yml` is re-parsed immediately with the **exact dialect the boot uses** (js-yaml `JSON_SCHEMA` + the `!!js` tag, top-level array, mapping entries). A parse failure denies the result with an actionable message (line numbers plus the fix: Windows paths either unquoted or double-backslash inside double quotes). This moves "broken patch file → explodes at the next market trial boot" to edit time.
+
+Known limitation: **valid** YAML escapes such as `\n` or `\P` do not throw, but silently corrupt double-quoted Windows paths (they become newline/separator characters). That "boots but the value is broken" class is out of scope for v1 — write paths unquoted or with double backslashes.
+
+## Mounting
+
+```bash
+# profile package.json
+"dsh-native-hooks": "github:qianmang1/dsh-native-hooks#v0.1.0"
+# then append to dsh.profile.bundles (the dsh.bundle.patch inserts the loader row)
+```
+
+The prebuilt `lib/index.js` is committed, so git installs run no build scripts.
+
+## Trade-offs
+
+- `turn` is not populated for `SessionStart`/`SubagentStart` (the bridge uses sessionProjections).
+- The bridge appends `hook/invoked`/`hook/result` session events; v1 logs via `ctx.logger`.
+- A timed-out in-process hook cannot be killed — its result is abandoned (fail-open).
+- Hook modules execute inside the harness main process — only drop files you trust.
+
+## Development
+
+```bash
+npm install
+npm run typecheck
+npm run build
+npm test        # 37 cases
+```
+
+中文文档：[README.md](README.md)。License: MIT.

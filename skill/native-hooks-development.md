@@ -19,7 +19,7 @@ export default {
   matcher: /^Bash$/,         // 可选：按事件 subject 过滤（工具事件=工具名；SessionStart=启动来源；其余忽略）
   handle: async (input) => { // 返回 HookResult 或 undefined（= 无意见，放行）
     const command = String(input.toolInput?.command ?? '')
-    if (/rm\s+-rf\s+\//.test(command)) {
+    if (/rm\\s+-rf\\s+\\//.test(command)) {
       return { decision: 'deny', reason: '拒绝执行递归删除根目录的命令' }
     }
   },
@@ -45,4 +45,4 @@ export default {
 
 1. `id` 唯一且稳定；2. `event` 拼写正确；3. `matcher` 不要用 `g` 标志；4. `handle` 快速返回（超过 timeoutMs 会被放弃并告警，fail-open）；
 5. 决策语义：deny 是终局，后注册的钩子不能升级它；6. 写完放到 `~/.dsh/native-hooks/<id>.mjs`，重启（或触发了 hmr 的配置变更）后看 dsh 日志确认没有加载报错；
-7. 编辑任何 `cordis.patch.yml` 后跑一次市场诊断页——内置的 cordis-patch-guard 钩子也会在每次 Edit/Write 后自动校验。
+7. 编辑任何 `cordis.patch.yml` 后跑一次市场诊断页——内置的 cordis-patch-guard 钩子也会在每次文件工具调用后自动校验。

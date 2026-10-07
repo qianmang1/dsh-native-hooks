@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { describe, it } from 'node:test'
-import { registerSkill, skillMarkdown, SKILL_NAME, SKILL_PROVIDER } from '../src/skill.ts'
+import { diagnosticsSkillMarkdown, registerSkill, skillMarkdown, SKILL_DIAGNOSTICS_NAME, SKILL_NAME, SKILL_PROVIDER } from '../src/skill.ts'
 import type { SkillServiceSurface } from '../src/types.ts'
 
 type ProviderObject = ReturnType<Parameters<SkillServiceSurface['registerProvider']>[0]>
@@ -35,23 +35,32 @@ function captureProvider(): ProviderObject {
 }
 
 describe('registerSkill contract', () => {
-  it('publishes a candidate that satisfies the skill registry validation', async () => {
+  it('publishes both skills, each satisfying the skill registry validation', async () => {
     const provider = captureProvider()
     assert.equal(provider.name, SKILL_PROVIDER)
     const candidates = await provider.list()
     assert.ok(Array.isArray(candidates), 'list must return an array')
-    assert.equal(candidates.length, 1)
-    validateCandidate(candidates[0]!, SKILL_PROVIDER)
-    assert.equal(candidates[0]!.name, SKILL_NAME)
+    assert.deepEqual(candidates.map((entry) => entry.name).sort(), [SKILL_DIAGNOSTICS_NAME, SKILL_NAME])
+    for (const candidate of candidates) {
+      validateCandidate(candidate, SKILL_PROVIDER)
+      assert.equal(candidate.rank, 400)
+    }
   })
 
-  it('returns the full definition (content included) from get()', async () => {
+  it('returns the full definition (content included) from get() for each name', async () => {
     const provider = captureProvider()
-    const definition = await provider.get({ name: SKILL_NAME })
-    assert.ok(definition, 'get must return the definition for our skill')
-    validateCandidate(definition!, SKILL_PROVIDER)
-    assert.equal(definition!.content, skillMarkdown)
-    assert.ok(definition!.content.includes('HookSpec'))
+    const hooksDefinition = await provider.get({ name: SKILL_NAME })
+    assert.ok(hooksDefinition, 'get must return the native-hooks-development definition')
+    validateCandidate(hooksDefinition!, SKILL_PROVIDER)
+    assert.equal(hooksDefinition!.content, skillMarkdown)
+    assert.ok(hooksDefinition!.content.includes('HookSpec'))
+
+    const diagnosticsDefinition = await provider.get({ name: SKILL_DIAGNOSTICS_NAME })
+    assert.ok(diagnosticsDefinition, 'get must return the dsh-plugin-diagnostics definition')
+    validateCandidate(diagnosticsDefinition!, SKILL_PROVIDER)
+    assert.equal(diagnosticsDefinition!.content, diagnosticsSkillMarkdown)
+    assert.ok(diagnosticsDefinition!.content.includes('analyzeProfile'))
+
     assert.equal(await provider.get({ name: 'other' }), undefined)
   })
 

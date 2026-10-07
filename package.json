@@ -1,6 +1,6 @@
 {
   "name": "dsh-native-hooks",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "DeepSeek Harness 原生 hooks 框架：进程内、可扩展的 agent 钩子注册表（SessionStart/UserPromptSubmit/PreToolUse/PostToolUse/Stop/Subagent）— native in-process hooks registry for DeepSeek Harness.",
   "type": "module",
   "main": "lib/index.js",

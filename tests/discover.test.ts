@@ -39,12 +39,20 @@ describe('discoverHooks', () => {
     assert.ok(report.specs.every((spec) => spec.id !== 'bad-event'))
   })
 
-  it('silently skips a module with no hook export (a fully commented-out example)', async () => {
+  it('silently skips a module with no hook export (a fully commented-out example), but counts it as inert', async () => {
     writeHook(dir, 'disabled-example.mjs', `// export default { id: 'off', event: 'Stop', handle: async () => undefined }\n`)
     const report = await discoverHooks([dir], [])
     assert.equal(report.specs.some((spec) => spec.id === 'off'), false)
     assert.equal(report.problems.some((problem) => problem.includes('disabled-example.mjs')), false,
       'an inert example file must not produce load problems')
+    assert.ok(report.inert.some((file) => file.includes('disabled-example.mjs')),
+      'inert files must be counted so the boot log stays explainable')
+  })
+
+  it('an explicitly listed module with no hook export stays a problem (you named it; it does nothing)', async () => {
+    const path = writeHook(dir, 'empty-explicit.mjs', `export const anything = 1\n`)
+    const report = await discoverHooks([], [path])
+    assert.match(report.problems.join('\n'), /empty-explicit\.mjs: module exports neither a default nor a named `hook` HookSpec/)
   })
 
   it('keeps the first registration on duplicate ids', async () => {

@@ -44,6 +44,10 @@ export interface DiscoveryReport {
   specs: HookSpec[]
   /** Non-fatal problems: unreadable dir, bad module, invalid spec, duplicate id. */
   problems: string[]
+  /** Files with no hook export at all — inert by design (commented-out
+   * examples, unrelated helpers). Skipped silently, but counted so the boot
+   * log can show why a hook the author expects is not loaded. */
+  inert: string[]
 }
 
 /**
@@ -58,6 +62,7 @@ export async function discoverHooks(
 ): Promise<DiscoveryReport> {
   const specs: HookSpec[] = []
   const problems: string[] = []
+  const inert: string[] = []
   const seen = new Set<string>()
   const accept = (value: unknown, source: string): void => {
     const problem = validateSpec(value)
@@ -90,8 +95,12 @@ export async function discoverHooks(
         const module = await import(pathToFileURL(source).href)
         const candidate = hookFromModule(module)
         // A module with no hook export at all is inert by design (a fully
-        // commented-out example, an unrelated helper) — skip silently.
-        if (candidate === undefined) continue
+        // commented-out example, an unrelated helper) — skip without a
+        // problem entry, but count it so the boot log stays explainable.
+        if (candidate === undefined) {
+          inert.push(source)
+          continue
+        }
         accept(candidate, source)
       } catch (error) {
         problems.push(`${source}: failed to load — ${errorText(error)}`)
@@ -102,12 +111,20 @@ export async function discoverHooks(
     const url = resolveModulePath(modulePath, dshHome)
     try {
       const module = await import(url)
-      accept(hookFromModule(module), modulePath)
+      const candidate = hookFromModule(module)
+      // Unlike a drop-in discovery dir, an EXPLICITLY listed module that
+      // exports nothing is a misconfiguration (you named it; it does
+      // nothing) — keep it a problem rather than an inert skip.
+      if (candidate === undefined) {
+        problems.push(`${modulePath}: module exports neither a default nor a named \`hook\` HookSpec`)
+        continue
+      }
+      accept(candidate, modulePath)
     } catch (error) {
       problems.push(`${modulePath}: failed to load — ${errorText(error)}`)
     }
   }
-  return { specs, problems }
+  return { specs, problems, inert }
 }
 
 function hookFromModule(module: Record<string, unknown>): unknown {

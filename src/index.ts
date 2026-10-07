@@ -83,7 +83,15 @@ export function apply(ctx: Context, config: Config): void {
         if (config.disabledHooks?.includes(spec.id)) continue
         service.register(spec)
       }
-      if (report.specs.length > 0) ctx.logger.info(`native-hooks: loaded ${report.specs.length} hook module(s)`)
+      const skipped = config.disabledHooks
+        ? report.specs.filter((spec) => config.disabledHooks?.includes(spec.id)).length
+        : 0
+      if (report.specs.length > 0 || report.inert.length > 0) {
+        ctx.logger.info(
+          `native-hooks: loaded ${report.specs.length - skipped} hook module(s)` +
+          (report.inert.length > 0 ? `, skipped ${report.inert.length} inert file(s)` : ''),
+        )
+      }
     })
     .catch((error: unknown) => {
       ctx.logger.warn(`native-hooks: discovery failed: ${errorText(error)}`)

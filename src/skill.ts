@@ -4,12 +4,21 @@
  * HookSpec contract, a copy-paste module template, and a self-check list.
  * Registration is opportunistic — a host without the skills service just gets
  * the README (the same content ships as `skill/native-hooks-development.md`).
+ *
+ * The provider surface mirrors `@deepseek-ai/dsh-skill`'s validation exactly:
+ * candidates need a finite `rank`, a `provider` field equal to the registered
+ * provider name, string `source`; `get()` must return the full definition
+ * (`content` included).
  * @module dsh-native-hooks/skill
  */
 
 import type { SkillServiceSurface } from './types.ts'
 
 export const SKILL_NAME = 'native-hooks-development'
+export const SKILL_PROVIDER = 'native-hooks'
+/** Lower ranks win duplicate names; sitting above the runtime layer (250)
+ * lets a user's own same-name skill shadow this helper. */
+export const SKILL_RANK = 400
 
 const SKILL_BODY = `---
 name: native-hooks-development
@@ -61,11 +70,14 @@ export default {
 7. 编辑任何 \`cordis.patch.yml\` 后跑一次市场诊断页——内置的 cordis-patch-guard 钩子也会在每次 Edit/Write 后自动校验。
 `
 
-const SKILL_SUMMARY = {
+const SKILL_SUMMARY_FIELDS = {
   name: SKILL_NAME,
   description: '为 dsh-native-hooks 编写新的进程内 agent 钩子（HookSpec 模块）：工具拦截、上下文注入、危险命令防护。',
   whenToUse: '用户要求新增 agent hook / 拦截工具调用 / 会话启动注入上下文，且环境装有 dsh-native-hooks。',
   invocation: { modelInvocable: true, userInvocable: true },
+  source: 'custom' as const,
+  provider: SKILL_PROVIDER,
+  rank: SKILL_RANK,
 }
 
 /** Register the authoring skill when the host exposes a skills service. */
@@ -80,13 +92,13 @@ export function registerSkill(ctx: {
   if (typeof skills?.registerProvider !== 'function') return
   try {
     skills.registerProvider(() => ({
-      name: 'native-hooks',
+      name: SKILL_PROVIDER,
       async list() {
-        return [{ ...SKILL_SUMMARY, source: `${source}#skill`, provider: source }]
+        return [{ ...SKILL_SUMMARY_FIELDS, source: `custom#${source}` }]
       },
       async get(candidate: { name: string }) {
         if (candidate?.name !== SKILL_NAME) return undefined
-        return { ...SKILL_SUMMARY, content: SKILL_BODY }
+        return { ...SKILL_SUMMARY_FIELDS, content: SKILL_BODY }
       },
     }))
   } catch (error) {

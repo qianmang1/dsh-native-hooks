@@ -84,14 +84,27 @@ export interface HookSpec {
   source?: string
 }
 
-/** Structural surface of `ctx.skills` used to publish the authoring skill. */
+/** Structural surface of `ctx.skills` used to publish the authoring skill.
+ * Field requirements mirror `@deepseek-ai/dsh-skill`'s `validateCandidate` /
+ * `validateDefinition`: candidates carry a finite `rank` and a `provider`
+ * equal to the registered provider name; `get()` returns the full definition. */
+export interface SkillSummaryEntry {
+  name: string
+  description: string
+  whenToUse?: string
+  invocation: { modelInvocable: boolean; userInvocable: boolean }
+  source: string
+  provider: string
+  rank: number
+}
+
 export interface SkillServiceSurface {
   registerProvider(create: (control: {
     signal: { aborted: boolean; addEventListener(type: string, fn: () => void, opts?: unknown): void }
     invalidate(): void
   }) => {
     name: string
-    list(options?: unknown): Promise<{ name: string; description: string; whenToUse?: string; invocation: { modelInvocable: boolean; userInvocable: boolean }; source: string; provider: string }[] | { candidates: unknown[]; complete: boolean }>
-    get(candidate: { name: string }, options?: unknown): Promise<{ name: string; description: string; content: string } | undefined>
+    list(options?: unknown): Promise<SkillSummaryEntry[] | { candidates: unknown[]; complete: boolean }>
+    get(candidate: { name: string }, options?: unknown): Promise<(SkillSummaryEntry & { content: string }) | undefined>
   }): unknown
 }

@@ -92,7 +92,7 @@ Returning `undefined` means "no opinion". `ask` applies to PreToolUse only (via 
 
 ## Built-in hook: cordis-patch-guard
 
-Any Edit/Write/MultiEdit landing on a `cordis.patch.yml` is re-parsed immediately with the **exact dialect the boot uses** (js-yaml `JSON_SCHEMA` + the `!!js` tag, top-level array, mapping entries). A parse failure denies the result with an actionable message (line numbers plus the fix: Windows paths either unquoted or double-backslash inside double quotes). This moves "broken patch file → explodes at the next market trial boot" to edit time.
+ANY file-tool call landing on a `cordis.patch.yml` (tool-name agnostic: DSH `edit`/`write`/`str_replace_editor`, Claude Code `Edit`/`Write`, … — anything whose arguments carry a path to the file) is re-parsed immediately with the **exact dialect the boot uses** (js-yaml `JSON_SCHEMA` + the `!!js` tag, top-level array, mapping entries). A parse failure denies the result with an actionable message (line numbers plus the fix: Windows paths either unquoted or double-backslash inside double quotes). This moves "broken patch file → explodes at the next market trial boot" to edit time.
 
 Known limitation: **valid** YAML escapes such as `\n` or `\P` do not throw, but silently corrupt double-quoted Windows paths (they become newline/separator characters). That "boots but the value is broken" class is out of scope for v1 — write paths unquoted or with double backslashes.
 

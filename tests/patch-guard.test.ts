@@ -31,9 +31,9 @@ const NON_MAPPING_ENTRY = `- id: ok-entry
 - [also, wrong]
 `
 
-function patchInput(filePath: string): HookInput {
+function patchInput(filePath: string, toolName = 'edit'): HookInput {
   return {
-    event: 'PostToolUse', subject: 'Edit', toolName: 'Edit', toolInput: { file_path: filePath },
+    event: 'PostToolUse', subject: toolName, toolName, toolInput: { file_path: filePath },
     signal: new AbortController().signal, raw: {},
   }
 }
@@ -80,6 +80,20 @@ describe('cordis-patch-guard handle', () => {
     assert.equal(cordisPatchGuard.handle(patchInput(backup)), undefined)
     const readme = join(root, 'README.md')
     assert.equal(cordisPatchGuard.handle(patchInput(readme)), undefined)
+  })
+
+  it('guards every host tool shape: DSH edit/write/str_replace_editor carry different names and path keys', () => {
+    const filePath = join(root, 'cordis.patch.yml')
+    writeFileSync(filePath, BROKEN_ESCAPE, 'utf8')
+    // DSH tool-fs `edit`/`write` use `file_path` (lowercase tool names)
+    assert.equal(cordisPatchGuard.handle(patchInput(filePath, 'edit')) === undefined, false)
+    assert.equal(cordisPatchGuard.handle(patchInput(filePath, 'write')) === undefined, false)
+    // str_replace-editor uses `path`
+    const viaPathKey = cordisPatchGuard.handle({
+      event: 'PostToolUse', subject: 'str_replace_editor', toolName: 'str_replace_editor',
+      toolInput: { path: filePath }, signal: new AbortController().signal, raw: {},
+    })
+    assert.ok(viaPathKey && typeof viaPathKey === 'object' && 'decision' in viaPathKey)
   })
 
   it('fails open when the edited file is already gone', () => {

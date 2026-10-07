@@ -55,13 +55,16 @@ const FIX_HINT = '注意：Windows 路径要么不加引号（command: C:\\Path\
 export const cordisPatchGuard: HookSpec = {
   id: 'cordis-patch-guard',
   event: 'PostToolUse',
-  matcher: /^Edit$|^Write$|^MultiEdit$/,
+  // No tool-name matcher on purpose: file tools differ per host (Claude Code
+  // Edit/Write, DSH `edit`/`write`/`str_replace_editor`, …). The handle
+  // filters by the edited path's basename instead, so ANY tool call that
+  // landed on a cordis.patch.yml is guarded.
   source: 'builtin:cordis-patch-guard',
   handle(input) {
-    const toolInput = (input.toolInput ?? {}) as { file_path?: unknown; path?: unknown }
-    const filePath = typeof toolInput.file_path === 'string' && toolInput.file_path.length > 0
-      ? toolInput.file_path
-      : typeof toolInput.path === 'string' ? toolInput.path : ''
+    const toolInput = (input.toolInput ?? {}) as Record<string, unknown>
+    const filePath = ['file_path', 'path', 'filePath', 'filename']
+      .map((key) => toolInput[key])
+      .find((value): value is string => typeof value === 'string' && value.length > 0) ?? ''
     // The basename is the contract: every profile's patch layer and the
     // home-level one are guarded; backups (`cordis.patch.yml.bak-*`) are not.
     if (filePath.length === 0 || basename(filePath) !== 'cordis.patch.yml') return undefined

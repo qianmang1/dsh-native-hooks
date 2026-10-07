@@ -104,7 +104,7 @@ interface HookResult {
 
 ## 内置钩子：cordis-patch-guard
 
-对任何落在 `cordis.patch.yml` 上的 Edit/Write/MultiEdit，用**与启动完全相同的解析方言**（js-yaml `JSON_SCHEMA` + `!!js` tag、顶层数组、映射条目）立即重新解析；解析失败即把结果改写为模型可见的错误反馈（含行号与修复提示：Windows 路径要么不加引号，要么双引号内双反斜杠）。这把"写坏 patch 文件 → 下次插件更新 trial 才爆炸"的问题提前到了编辑当场。
+对**任何**落在 `cordis.patch.yml` 上的文件工具调用（不限定工具名：DSH 的 `edit`/`write`/`str_replace_editor`、Claude Code 的 `Edit`/`Write` 等，只要参数里带了指向该文件的路径）用**与启动完全相同的解析方言**（js-yaml `JSON_SCHEMA` + `!!js` tag、顶层数组、映射条目）立即重新解析；解析失败即把结果改写为模型可见的错误反馈（含行号与修复提示：Windows 路径要么不加引号，要么双引号内双反斜杠）。这把"写坏 patch 文件 → 下次插件更新 trial 才爆炸"的问题提前到了编辑当场。
 
 已知限制：`\n`、`\P` 等**合法** YAML 转义不会抛错，但会把双引号里的 Windows 路径静默破坏成带换行的值——这类"能启动但值坏了"的场景不在 v1 拦截范围，请按提示的两种写法书写路径。
 

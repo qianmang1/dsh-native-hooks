@@ -22,12 +22,13 @@ import type { UserMessage } from '@deepseek-ai/dsh-session'
 import type { SubagentRunId } from '@deepseek-ai/dsh-subagent'
 import type { PostToolDecision, PreToolDecision, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
-import { discoverHooks, resolveDshHome } from './discover.ts'
+import { discoverHooks, resolveDiscoveryDirs, resolveDshHome } from './discover.ts'
 import { errorText, runSpecs } from './fold.ts'
 import { cordisPatchGuard } from './hooks/patch-guard.ts'
 import { releaseGate } from './hooks/release-gate.ts'
 import { registerSkill } from './skill.ts'
 import { NativeHooksService } from './service.ts'
+import { startWatch } from './watch.ts'
 import type { FoldedOutcome } from './fold.ts'
 import type { HookSpec } from './types.ts'
 
@@ -43,7 +44,7 @@ const SUBAGENT_TYPE = 'general-purpose'
 export const name = 'native-hooks'
 
 export interface Config {
-  /** Directories scanned for hook modules (absent dirs are fine). */
+  /** Discovery dirs; absent means the default `$DSH_HOME/native-hooks`, an explicit `[]` means none. */
   dirs?: string[]
   /** Explicit hook module paths: absolute, `~/…`, `file:` URLs, or DSH-home-relative. */
   modules?: string[]
@@ -51,17 +52,27 @@ export interface Config {
   disabledHooks?: string[]
   /** Per-hook `handle` budget in ms; a hook that exceeds it fails open with a warning. */
   timeoutMs?: number
+  /** Fold added/edited/deleted discovery modules into the registry without a plugin reload. */
+  watchEnabled?: boolean
+  /** Coalescing window for the discovery watcher, in ms. */
+  watchDebounceMs?: number
 }
 
 export const Config: z<Config> = z.object({
-  dirs: z.array(z.string()).default([]),
+  dirs: z.array(z.string()),
   modules: z.array(z.string()).default([]),
   disabledHooks: z.array(z.string()).default([]),
   timeoutMs: z.number().default(10_000),
+  watchEnabled: z.boolean().default(true),
+  watchDebounceMs: z.number().default(150),
 })
 
 export function apply(ctx: Context, config: Config): void {
   const timeoutMs = config.timeoutMs ?? 10_000
+  const dshHome = resolveDshHome()
+  // One dirs list for both halves: the startup scan and the live watcher must
+  // never disagree about where hooks live.
+  const dirs = resolveDiscoveryDirs(config.dirs, dshHome)
   const service = new NativeHooksService(ctx)
 
   // Built-ins first so a same-id external spec replaces them deliberately.
@@ -76,7 +87,7 @@ export function apply(ctx: Context, config: Config): void {
   // Discovery is async (dynamic imports) while `apply` stays sync: the
   // listeners read `service.list()` at call time, so specs that land a moment
   // later still fire. Problems never take down the boot.
-  void discoverHooks(config.dirs ?? [], config.modules ?? [], resolveDshHome())
+  void discoverHooks(dirs, config.modules ?? [], dshHome)
     .then((report) => {
       for (const problem of report.problems) ctx.logger.warn(`native-hooks: ${problem}`)
       for (const spec of report.specs) {
@@ -96,6 +107,18 @@ export function apply(ctx: Context, config: Config): void {
     .catch((error: unknown) => {
       ctx.logger.warn(`native-hooks: discovery failed: ${errorText(error)}`)
     })
+
+  // A dropped file is live without a plugin reload; `watchEnabled: false`
+  // restores the startup-scan-only behavior.
+  if (config.watchEnabled !== false) {
+    const stopWatch = startWatch(service, {
+      dirs,
+      debounceMs: config.watchDebounceMs ?? 150,
+      disabledHooks: config.disabledHooks ?? [],
+      logger: ctx.logger,
+    })
+    ctx.effect(() => stopWatch, 'native-hooks: watch discovery dirs')
+  }
 
   registerSkill(ctx, 'dsh-native-hooks')
 

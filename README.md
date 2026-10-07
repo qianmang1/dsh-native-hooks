@@ -22,7 +22,7 @@ DeepSeek Harness 的**原生（进程内）hooks 框架**：一个注册表插�
 
 ### ① 目录投放（推荐，agent 友好）
 
-把一个 `.mjs` 文件丢进 `~/.dsh/native-hooks/`（`$DSH_HOME` 下）即可，**不改任何 YAML**：
+把一个 `.mjs` 文件丢进 `~/.dsh/native-hooks/`（`$DSH_HOME` 下）即可，**不改任何 YAML、不用重启** —— 插件盯着这个目录：
 
 ```js
 // ~/.dsh/native-hooks/no-rm-rf.mjs
@@ -39,7 +39,9 @@ export default {
 }
 ```
 
-目录由配置项 `dirs` 控制（默认 `[$DSH_HOME/native-hooks]`），可加多个。
+目录由配置项 `dirs` 控制：**不写 = 默认 `[$DSH_HOME/native-hooks]`**，可加多个；显式写 `dirs: []` 表示不发现任何目录（嵌入用法与测试用）。
+
+新增、编辑、删除都会**即时**折叠进注册表：改同一个文件会重新导入并替换旧 spec，删除即注销；把文件整体注释掉 = 有意停用，静默跳过。`watchEnabled: false` 可退回"只在启动时扫一次"，`watchDebounceMs`（默认 150）调合并窗口。
 
 ### ② 声明式 modules
 
@@ -96,10 +98,12 @@ interface HookResult {
 - id: native-hooks
   name: dsh-native-hooks
   config:
-    dirs: []                    # 额外发现目录；默认已含 $DSH_HOME/native-hooks
+    # dirs 不写 = [$DSH_HOME/native-hooks]；写 [] = 一个目录都不发现
     modules: []                 # 显式模块清单
     disabledHooks: []           # 关闭内置钩子（如 cordis-patch-guard）
     timeoutMs: 10000            # 单个 hook handle 的预算
+    watchEnabled: true          # 投放目录热载；false = 退回只在启动时扫一次
+    watchDebounceMs: 150        # 热载合并窗口（编辑器原子保存会连发多次事件）
 ```
 
 ## 内置钩子
@@ -113,11 +117,11 @@ interface HookResult {
 
 ```bash
 # profile package.json
-"dsh-native-hooks": "github:qianmang1/dsh-native-hooks#v0.1.0"
+"dsh-native-hooks": "github:qianmang1/dsh-native-hooks#v0.3.0"
 # 并加入 dsh.profile.bundles 列表（其 dsh.bundle.patch 会自动插入加载行）
 ```
 
-桌面端也可在「设置 → 插件」里安装。预构建的 `lib/index.js` 已提交，安装时无需构建脚本。
+桌面端也可在「设置 → 插件」里安装。`lib/` 不入库：git 安装时由 `prepack`（tsdown）构建，工作区内开发用 `npm run build`。
 
 ## 已知取舍
 
@@ -131,8 +135,8 @@ interface HookResult {
 ```bash
 npm install
 npm run typecheck   # tsc --noEmit
-npm run build       # tsdown → lib/index.js（提交）
-npm test            # node --test（37 个用例）
+npm run build       # tsdown → lib/index.js
+npm test            # node --test（55 个用例）
 ```
 
 English: see [README_EN.md](README_EN.md). License: MIT.

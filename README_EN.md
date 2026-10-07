@@ -22,7 +22,7 @@ Folding matches the bridge: deny is terminal (`deny > ask > allow`), hooks run s
 
 ### ① Drop a file (recommended, agent-friendly)
 
-Drop a `.mjs` file into `~/.dsh/native-hooks/` (under `$DSH_HOME`) — no YAML edits:
+Drop a `.mjs` file into `~/.dsh/native-hooks/` (under `$DSH_HOME`) — no YAML edits, no restart: the plugin watches that dir:
 
 ```js
 // ~/.dsh/native-hooks/no-rm-rf.mjs
@@ -39,7 +39,9 @@ export default {
 }
 ```
 
-Discovery dirs are configurable via `dirs` (default `[$DSH_HOME/native-hooks]`).
+Discovery dirs come from `dirs`: **absent means the default `[$DSH_HOME/native-hooks]`**; an explicit `dirs: []` means no discovery dirs at all (embedded uses and tests rely on that).
+
+Adds, edits, and deletes fold into the registry **immediately** — editing a file re-imports it and replaces its spec, deleting it unregisters. Commenting a whole file out means "intentionally disabled" and is skipped silently. `watchEnabled: false` restores scan-once-at-startup; `watchDebounceMs` (default 150) tunes the coalescing window.
 
 ### ② Declarative `modules`
 
@@ -101,11 +103,11 @@ Known limitation: **valid** YAML escapes such as `\n` or `\P` do not throw, but 
 
 ```bash
 # profile package.json
-"dsh-native-hooks": "github:qianmang1/dsh-native-hooks#v0.1.0"
+"dsh-native-hooks": "github:qianmang1/dsh-native-hooks#v0.3.0"
 # then append to dsh.profile.bundles (the dsh.bundle.patch inserts the loader row)
 ```
 
-The prebuilt `lib/index.js` is committed, so git installs run no build scripts.
+`lib/` is not committed: git installs build it via `prepack` (tsdown); use `npm run build` in-tree.
 
 ## Trade-offs
 
@@ -120,7 +122,7 @@ The prebuilt `lib/index.js` is committed, so git installs run no build scripts.
 npm install
 npm run typecheck
 npm run build
-npm test        # 37 cases
+npm test        # 55 cases
 ```
 
 中文文档：[README.md](README.md)。License: MIT.

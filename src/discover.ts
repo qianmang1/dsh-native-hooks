@@ -38,7 +38,27 @@ export function resolveModulePath(path: string, dshHome: string = resolveDshHome
   return pathToFileURL(join(dshHome, expanded)).href
 }
 
-const DISCOVERABLE_EXTENSIONS = ['.mjs', '.js', '.ts']
+/** Expand one configured dir: `~/…` to the OS home, everything else absolute. */
+function expandDir(raw: string): string {
+  return raw === '~' || raw.startsWith('~/') || raw.startsWith('~\\')
+    ? join(homedir(), raw.slice(1).replace(/^[/\\]/, ''))
+    : resolve(raw)
+}
+
+/**
+ * The discovery dirs a startup scan and the live watcher both use: every
+ * configured dir expanded to an absolute path. An ABSENT list means the
+ * documented drop-in dir `$DSH_HOME/native-hooks` — "drop a .mjs and it is
+ * live" must not require reading the README. An explicitly EMPTY list means no
+ * discovery dirs at all; the two must not collapse into one branch, or every
+ * caller that passes `[]` to disable discovery silently watches the real home.
+ */
+export function resolveDiscoveryDirs(raw: readonly string[] | undefined, dshHome: string): string[] {
+  if (raw === undefined) return [join(dshHome, 'native-hooks')]
+  return raw.map(expandDir)
+}
+
+export const DISCOVERABLE_EXTENSIONS = ['.mjs', '.js', '.ts']
 
 export interface DiscoveryReport {
   specs: HookSpec[]
@@ -79,9 +99,7 @@ export async function discoverHooks(
     specs.push({ ...spec, source })
   }
   for (const rawDir of dirs) {
-    const dir = rawDir === '~' || rawDir.startsWith('~/') || rawDir.startsWith('~\\')
-      ? join(homedir(), rawDir.slice(1).replace(/^[/\\]/, ''))
-      : resolve(rawDir)
+    const dir = expandDir(rawDir)
     let entries: string[]
     try {
       entries = readdirSync(dir)
@@ -127,7 +145,7 @@ export async function discoverHooks(
   return { specs, problems, inert }
 }
 
-function hookFromModule(module: Record<string, unknown>): unknown {
+export function hookFromModule(module: Record<string, unknown>): unknown {
   // `undefined` = no hook export — the caller skips the file silently (an
   // intentionally disabled or non-hook module), while an exported-but-invalid
   // spec still fails validation loudly.

@@ -45,4 +45,8 @@ export default {
 
 1. `id` 唯一且稳定；2. `event` 拼写正确；3. `matcher` 不要用 `g` 标志；4. `handle` 快速返回（超过 timeoutMs 会被放弃并告警，fail-open）；
 5. 决策语义：deny 是终局，后注册的钩子不能升级它；6. 写完放到 `~/.dsh/native-hooks/<id>.mjs`，重启（或触发 hmr 的配置变更）后核对 dsh 日志的加载计数：`native-hooks: loaded N hook module(s), skipped M inert file(s)`——N 应包含你的文件；**整个文件注释掉（模块因此无任何导出）= 有意停用**：发现器跳过它、计入 skipped、不报 warning。钩子没生效且 skipped 计数没涨时，先查文件是否真在发现目录、扩展名是否为 .mjs/.js/.ts；显式 `modules` 清单里点名的无导出文件仍会报 error——点名却不生效是配置错误；
-7. 编辑任何 `cordis.patch.yml` 后跑一次市场诊断页——内置的 cordis-patch-guard 钩子也会在每次文件工具调用后自动校验。
+7. **写完先自检再重启**（一行命令即可抓出漏导出/字段错误，避免"静默惰性"）：
+```bash
+node -e "import('file:///<钩子文件路径>').then(m => { const s = m.default; if (!s) throw new Error('no default export — 整个文件是注释状态或漏了导出'); console.log('spec OK:', s.id, '/', s.event, '/', typeof s.handle) }).catch(e => { console.error('INVALID:', e.message); process.exit(1) })"
+```
+8. 编辑任何 `cordis.patch.yml` 后跑一次市场诊断页——内置的 cordis-patch-guard 钩子也会在每次文件工具调用后自动校验。

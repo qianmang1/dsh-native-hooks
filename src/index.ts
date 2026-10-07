@@ -301,7 +301,7 @@ function createDetachedRuns(): DetachedRuns {
   }
 }
 
-export { NativeHooksService } from './service.ts'
+export { NativeHooksService, validateSpec } from './service.ts'
 export { skillMarkdown, SKILL_NAME } from './skill.ts'
 export { parsePatchText, patchProblem } from './hooks/patch-guard.ts'
 export { auditPackage } from './lib/release-audit.ts'

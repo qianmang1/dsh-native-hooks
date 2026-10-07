@@ -44,5 +44,5 @@ export default {
 ## 自检清单
 
 1. `id` 唯一且稳定；2. `event` 拼写正确；3. `matcher` 不要用 `g` 标志；4. `handle` 快速返回（超过 timeoutMs 会被放弃并告警，fail-open）；
-5. 决策语义：deny 是终局，后注册的钩子不能升级它；6. 写完放到 `~/.dsh/native-hooks/<id>.mjs`，重启（或触发了 hmr 的配置变更）后看 dsh 日志确认没有加载报错；
+5. 决策语义：deny 是终局，后注册的钩子不能升级它；6. 写完放到 `~/.dsh/native-hooks/<id>.mjs`，重启（或触发了 hmr 的配置变更）后看 dsh 日志确认没有加载报错；**整个文件注释掉（无任何导出）= 有意停用，发现器静默跳过不报错**——示例模板就用这种方式闲置；
 7. 编辑任何 `cordis.patch.yml` 后跑一次市场诊断页——内置的 cordis-patch-guard 钩子也会在每次文件工具调用后自动校验。

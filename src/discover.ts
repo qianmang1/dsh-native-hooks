@@ -88,7 +88,11 @@ export async function discoverHooks(
       const source = join(dir, entry)
       try {
         const module = await import(pathToFileURL(source).href)
-        accept(hookFromModule(module), source)
+        const candidate = hookFromModule(module)
+        // A module with no hook export at all is inert by design (a fully
+        // commented-out example, an unrelated helper) — skip silently.
+        if (candidate === undefined) continue
+        accept(candidate, source)
       } catch (error) {
         problems.push(`${source}: failed to load — ${errorText(error)}`)
       }
@@ -107,8 +111,8 @@ export async function discoverHooks(
 }
 
 function hookFromModule(module: Record<string, unknown>): unknown {
-  const candidate = module.default ?? module.hook
-  if (candidate !== undefined) return candidate
-  // A module that exports nothing hook-like is a problem, not a silent skip.
-  throw new TypeError('module exports neither a default nor a named `hook` HookSpec')
+  // `undefined` = no hook export — the caller skips the file silently (an
+  // intentionally disabled or non-hook module), while an exported-but-invalid
+  // spec still fails validation loudly.
+  return module.default ?? module.hook
 }

@@ -32,13 +32,19 @@ describe('discoverHooks', () => {
   it('reports a broken module and an invalid spec without failing the rest', async () => {
     writeHook(dir, 'syntax.mjs', 'export default { id: broken !!! }')
     writeHook(dir, 'invalid.mjs', `export default { id: 'bad-event', event: 'Sometime', handle: () => {} }`)
-    writeHook(dir, 'empty.mjs', `export const anything = 1`)
     const report = await discoverHooks([dir], [])
     const problems = report.problems.join('\n')
     assert.match(problems, /syntax\.mjs: failed to load/)
     assert.match(problems, /invalid\.mjs: spec\.event must be one of/)
-    assert.match(problems, /empty\.mjs: failed to load — module exports neither a default nor a named `hook` HookSpec/)
     assert.ok(report.specs.every((spec) => spec.id !== 'bad-event'))
+  })
+
+  it('silently skips a module with no hook export (a fully commented-out example)', async () => {
+    writeHook(dir, 'disabled-example.mjs', `// export default { id: 'off', event: 'Stop', handle: async () => undefined }\n`)
+    const report = await discoverHooks([dir], [])
+    assert.equal(report.specs.some((spec) => spec.id === 'off'), false)
+    assert.equal(report.problems.some((problem) => problem.includes('disabled-example.mjs')), false,
+      'an inert example file must not produce load problems')
   })
 
   it('keeps the first registration on duplicate ids', async () => {

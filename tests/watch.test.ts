@@ -106,17 +106,22 @@ describe('startWatch', () => {
 })
 
 describe('resolveDiscoveryDirs', () => {
-  it('defaults to the drop-in dir so "drop a .mjs" needs no config', () => {
+  it('prepends the drop-in dir so "drop a .mjs" needs no config', () => {
     const home = join(tmpdir(), 'native-hooks-home-')
     assert.deepEqual(resolveDiscoveryDirs(undefined, home), [join(home, 'native-hooks')])
+    assert.deepEqual(resolveDiscoveryDirs([], home), [join(home, 'native-hooks')])
   })
 
-  it('keeps an explicitly empty list empty, and expands configured entries', () => {
+  it('drops the drop-in dir on request, and expands configured entries', () => {
     const home = join(tmpdir(), 'native-hooks-home-')
-    // `[]` is how a caller (and the pipeline test) says "discover nothing" — it
-    // must not fall back to the real home dir.
-    assert.deepEqual(resolveDiscoveryDirs([], home), [])
-    assert.deepEqual(resolveDiscoveryDirs(['~/extra-hooks'], home), [join(homedir(), 'extra-hooks')])
-    assert.deepEqual(resolveDiscoveryDirs([home], home), [home])
+    // `dropInDir: false` is how a caller (and the pipeline test) says "discover
+    // nothing but what I list": schemastery turns an unset `dirs` into `[]`, so
+    // the list alone can never express it.
+    assert.deepEqual(resolveDiscoveryDirs([], home, false), [])
+    assert.deepEqual(
+      resolveDiscoveryDirs(['~/extra-hooks'], home),
+      [join(home, 'native-hooks'), join(homedir(), 'extra-hooks')],
+    )
+    assert.deepEqual(resolveDiscoveryDirs([home], home, false), [home])
   })
 })

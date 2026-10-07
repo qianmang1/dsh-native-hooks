@@ -21,7 +21,7 @@ async function setup(config?: Partial<Config>) {
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(nativeHooks, {
-    dirs: [], modules: [], disabledHooks: [], timeoutMs: 5000, ...config,
+    dirs: [], dropInDir: false, modules: [], disabledHooks: [], timeoutMs: 5000, ...config,
   })
   return ctx
 }

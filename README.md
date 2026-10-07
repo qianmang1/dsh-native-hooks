@@ -39,7 +39,7 @@ export default {
 }
 ```
 
-目录由配置项 `dirs` 控制：**不写 = 默认 `[$DSH_HOME/native-hooks]`**，可加多个；显式写 `dirs: []` 表示不发现任何目录（嵌入用法与测试用）。
+发现目录 = 投放目录 `$DSH_HOME/native-hooks`（配置项 `dropInDir`，默认 `true`；设 `false` 关闭）+ `dirs` 里的额外目录。注意：**空数组不等于关闭** —— schemastery 会把没写的 `dirs` 填成 `[]`，所以"不要投放目录"只能用 `dropInDir: false` 表达。
 
 新增、编辑、删除都会**即时**折叠进注册表：改同一个文件会重新导入并替换旧 spec，删除即注销；把文件整体注释掉 = 有意停用，静默跳过。`watchEnabled: false` 可退回"只在启动时扫一次"，`watchDebounceMs`（默认 150）调合并窗口。
 
@@ -98,7 +98,8 @@ interface HookResult {
 - id: native-hooks
   name: dsh-native-hooks
   config:
-    # dirs 不写 = [$DSH_HOME/native-hooks]；写 [] = 一个目录都不发现
+    dropInDir: true             # 投放目录 $DSH_HOME/native-hooks；false = 只发现 dirs
+    dirs: []                    # 额外发现目录
     modules: []                 # 显式模块清单
     disabledHooks: []           # 关闭内置钩子（如 cordis-patch-guard）
     timeoutMs: 10000            # 单个 hook handle 的预算

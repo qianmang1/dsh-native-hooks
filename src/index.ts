@@ -44,8 +44,10 @@ const SUBAGENT_TYPE = 'general-purpose'
 export const name = 'native-hooks'
 
 export interface Config {
-  /** Discovery dirs; absent means the default `$DSH_HOME/native-hooks`, an explicit `[]` means none. */
+  /** Extra discovery dirs, on top of the drop-in dir. */
   dirs?: string[]
+  /** Include the drop-in dir `$DSH_HOME/native-hooks` (default `true`); `false` discovers only `dirs`. */
+  dropInDir?: boolean
   /** Explicit hook module paths: absolute, `~/…`, `file:` URLs, or DSH-home-relative. */
   modules?: string[]
   /** Built-in hook ids to skip (currently only `cordis-patch-guard`). */
@@ -59,7 +61,8 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  dirs: z.array(z.string()),
+  dirs: z.array(z.string()).default([]),
+  dropInDir: z.boolean().default(true),
   modules: z.array(z.string()).default([]),
   disabledHooks: z.array(z.string()).default([]),
   timeoutMs: z.number().default(10_000),
@@ -72,7 +75,7 @@ export function apply(ctx: Context, config: Config): void {
   const dshHome = resolveDshHome()
   // One dirs list for both halves: the startup scan and the live watcher must
   // never disagree about where hooks live.
-  const dirs = resolveDiscoveryDirs(config.dirs, dshHome)
+  const dirs = resolveDiscoveryDirs(config.dirs, dshHome, config.dropInDir !== false)
   const service = new NativeHooksService(ctx)
 
   // Built-ins first so a same-id external spec replaces them deliberately.

@@ -46,16 +46,23 @@ function expandDir(raw: string): string {
 }
 
 /**
- * The discovery dirs a startup scan and the live watcher both use: every
- * configured dir expanded to an absolute path. An ABSENT list means the
- * documented drop-in dir `$DSH_HOME/native-hooks` — "drop a .mjs and it is
- * live" must not require reading the README. An explicitly EMPTY list means no
- * discovery dirs at all; the two must not collapse into one branch, or every
- * caller that passes `[]` to disable discovery silently watches the real home.
+ * The discovery dirs a startup scan and the live watcher both use: the
+ * documented drop-in dir `$DSH_HOME/native-hooks` (unless `dropInDir` turns it
+ * off) followed by every configured dir expanded to an absolute path.
+ *
+ * The drop-in dir cannot be expressed as "an absent `dirs`": schemastery fills
+ * an unset `z.array()` with `[]`, so an absent list and an explicit empty list
+ * are indistinguishable once the config is parsed. A separate boolean is what
+ * actually lets a caller say "discover nothing" — which the pipeline test
+ * needs, since otherwise every case would scan the real home dir.
  */
-export function resolveDiscoveryDirs(raw: readonly string[] | undefined, dshHome: string): string[] {
-  if (raw === undefined) return [join(dshHome, 'native-hooks')]
-  return raw.map(expandDir)
+export function resolveDiscoveryDirs(
+  raw: readonly string[] | undefined,
+  dshHome: string,
+  dropInDir = true,
+): string[] {
+  const configured = (raw ?? []).map(expandDir)
+  return dropInDir ? [join(dshHome, 'native-hooks'), ...configured] : configured
 }
 
 export const DISCOVERABLE_EXTENSIONS = ['.mjs', '.js', '.ts']

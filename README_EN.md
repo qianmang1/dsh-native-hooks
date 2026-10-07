@@ -39,7 +39,7 @@ export default {
 }
 ```
 
-Discovery dirs come from `dirs`: **absent means the default `[$DSH_HOME/native-hooks]`**; an explicit `dirs: []` means no discovery dirs at all (embedded uses and tests rely on that).
+Discovery dirs are the drop-in dir `$DSH_HOME/native-hooks` (config `dropInDir`, default `true`; `false` disables it) followed by the extra dirs listed in `dirs`. An empty `dirs` is NOT how you disable discovery: schemastery fills an unset array with `[]`, so `dropInDir: false` is the only way to say it.
 
 Adds, edits, and deletes fold into the registry **immediately** — editing a file re-imports it and replaces its spec, deleting it unregisters. Commenting a whole file out means "intentionally disabled" and is skipped silently. `watchEnabled: false` restores scan-once-at-startup; `watchDebounceMs` (default 150) tunes the coalescing window.
 

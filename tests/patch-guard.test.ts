@@ -96,6 +96,24 @@ describe('cordis-patch-guard handle', () => {
     assert.ok(viaPathKey && typeof viaPathKey === 'object' && 'decision' in viaPathKey)
   })
 
+  it('never blocks reads: the diagnostic rides along as context so the agent can still repair', () => {
+    const filePath = join(root, 'cordis.patch.yml')
+    writeFileSync(filePath, BROKEN_ESCAPE, 'utf8')
+    for (const readCall of [
+      { toolName: 'read', toolInput: { file_path: filePath } as Record<string, unknown> },
+      { toolName: 'str_replace_editor', toolInput: { path: filePath, command: 'view' } as Record<string, unknown> },
+    ]) {
+      const result = cordisPatchGuard.handle({
+        event: 'PostToolUse', subject: readCall.toolName, ...readCall,
+        signal: new AbortController().signal, raw: {},
+      })
+      assert.ok(result && typeof result === 'object')
+      const hooked = result as { decision?: string; additionalContext?: string }
+      assert.equal(hooked.decision, undefined, 'a read must not be denied')
+      assert.match(hooked.additionalContext ?? '', /invalid entry list/)
+    }
+  })
+
   it('fails open when the edited file is already gone', () => {
     assert.equal(cordisPatchGuard.handle(patchInput(join(root, 'deleted', 'cordis.patch.yml'))), undefined)
   })

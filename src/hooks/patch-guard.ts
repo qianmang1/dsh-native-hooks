@@ -52,6 +52,11 @@ export function patchProblem(text: string): string | null {
 
 const FIX_HINT = '注意：Windows 路径要么不加引号（command: C:\\Path\\File.exe），要么双引号内双反斜杠（"C:\\\\Path\\\\File.exe"）。'
 
+/** Read-shaped tools must still see the file CONTENT — a blocked read leaves
+ * the agent unable to repair the file. Reads get the diagnostic as injected
+ * context instead; mutations get the deny. */
+const READISH_TOOL = /\bread\b|\bview\b|\blist\b|\bsearch\b|\bgrep\b|\bglob\b|\bls\b|\bcat\b|\bshow\b|\bpeek\b|\bfind\b/i
+
 export const cordisPatchGuard: HookSpec = {
   id: 'cordis-patch-guard',
   event: 'PostToolUse',
@@ -76,6 +81,11 @@ export const cordisPatchGuard: HookSpec = {
     }
     const problem = patchProblem(text)
     if (problem === null) return undefined
+    const toolName = input.toolName ?? ''
+    const isRead = READISH_TOOL.test(toolName) || toolInput.command === 'view'
+    if (isRead) {
+      return { additionalContext: `⚠ ${problem} ${FIX_HINT}` }
+    }
     return { decision: 'deny', feedback: `${problem} ${FIX_HINT}` }
   },
 }

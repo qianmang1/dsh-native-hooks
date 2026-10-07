@@ -25,6 +25,7 @@ import z from '@deepseek-ai/schemastery'
 import { discoverHooks, resolveDshHome } from './discover.ts'
 import { errorText, runSpecs } from './fold.ts'
 import { cordisPatchGuard } from './hooks/patch-guard.ts'
+import { releaseGate } from './hooks/release-gate.ts'
 import { registerSkill } from './skill.ts'
 import { NativeHooksService } from './service.ts'
 import type { FoldedOutcome } from './fold.ts'
@@ -65,6 +66,7 @@ export function apply(ctx: Context, config: Config): void {
 
   // Built-ins first so a same-id external spec replaces them deliberately.
   if (!config.disabledHooks?.includes(cordisPatchGuard.id)) service.register(cordisPatchGuard)
+  if (!config.disabledHooks?.includes(releaseGate.id)) service.register(releaseGate)
 
   // Emit-shaped points run detached, so their chains are tracked and drained
   // before the plugin's fiber disposes (same discipline as the bridge).
@@ -294,8 +296,11 @@ function createDetachedRuns(): DetachedRuns {
 export { NativeHooksService } from './service.ts'
 export { skillMarkdown, SKILL_NAME } from './skill.ts'
 export { parsePatchText, patchProblem } from './hooks/patch-guard.ts'
+export { auditPackage } from './lib/release-audit.ts'
+export type { AuditFinding, AuditOptions, AuditResult } from './lib/release-audit.ts'
 export type { HookEvent, HookInput, HookResult, HookSpec } from './types.ts'
 export type { FoldedOutcome } from './fold.ts'
 
-// Re-export the patch-guard spec so authors can fork it as a starting point.
+// Re-export the built-in hook specs so authors can fork them as starting points.
 export { cordisPatchGuard } from './hooks/patch-guard.ts'
+export { releaseGate } from './hooks/release-gate.ts'

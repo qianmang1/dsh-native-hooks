@@ -90,9 +90,10 @@ interface HookResult {
 
 Returning `undefined` means "no opinion". `ask` applies to PreToolUse only (via the approval seam; degrades to deny when absent).
 
-## Built-in hook: cordis-patch-guard
+## Built-in hooks
 
-ANY file-tool call landing on a `cordis.patch.yml` (tool-name agnostic: DSH `edit`/`write`/`str_replace_editor`, Claude Code `Edit`/`Write`, … — anything whose arguments carry a path to the file) is re-parsed immediately with the **exact dialect the boot uses** (js-yaml `JSON_SCHEMA` + the `!!js` tag, top-level array, mapping entries). A parse failure denies the result with an actionable message (line numbers plus the fix: Windows paths either unquoted or double-backslash inside double quotes). This moves "broken patch file → explodes at the next market trial boot" to edit time.
+- **cordis-patch-guard**: ANY file-tool call landing on a `cordis.patch.yml` (tool-name agnostic: DSH `edit`/`write`/`str_replace_editor`, Claude Code `Edit`/`Write`, … — anything whose arguments carry a path to the file) is re-parsed immediately with the **exact dialect the boot uses** (js-yaml `JSON_SCHEMA` + the `!!js` tag, top-level array, mapping entries). A parse failure denies the result with an actionable message (line numbers plus the fix: Windows paths either unquoted or double-backslash inside double quotes). Reads are never blocked — the diagnostic rides along as non-blocking context so the agent can still see and repair the file. This moves "broken patch file → explodes at the next market trial boot" to edit time.
+- **release-gate**: intercepts `git tag` (creation) inside a dsh plugin package and audits first (L1 patch parse + L2 package.json dsh-metadata audit + artifact smoke load; `--profile` adds the L3 composition check). Error-level findings deny the tag with the full report — the forced "diagnose after dev, before tag" step. CLI equivalent: `npm run release-check` (`scripts/release-check.mjs` is copy-paste reusable in other plugin repos). The gate keys on errors only; composition warnings (including the host-provided unknown-orphans class) never block a release.
 
 Known limitation: **valid** YAML escapes such as `\n` or `\P` do not throw, but silently corrupt double-quoted Windows paths (they become newline/separator characters). That "boots but the value is broken" class is out of scope for v1 — write paths unquoted or with double backslashes.
 

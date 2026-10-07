@@ -102,9 +102,10 @@ interface HookResult {
     timeoutMs: 10000            # 单个 hook handle 的预算
 ```
 
-## 内置钩子：cordis-patch-guard
+## 内置钩子
 
-对**任何**落在 `cordis.patch.yml` 上的文件工具调用（不限定工具名：DSH 的 `edit`/`write`/`str_replace_editor`、Claude Code 的 `Edit`/`Write` 等，只要参数里带了指向该文件的路径）用**与启动完全相同的解析方言**（js-yaml `JSON_SCHEMA` + `!!js` tag、顶层数组、映射条目）立即重新解析；解析失败即把结果改写为模型可见的错误反馈（含行号与修复提示：Windows 路径要么不加引号，要么双引号内双反斜杠）。这把"写坏 patch 文件 → 下次插件更新 trial 才爆炸"的问题提前到了编辑当场。
+- **cordis-patch-guard**：对**任何**落在 `cordis.patch.yml` 上的文件工具调用（不限定工具名：DSH 的 `edit`/`write`/`str_replace_editor`、Claude Code 的 `Edit`/`Write` 等，只要参数里带了指向该文件的路径）用**与启动完全相同的解析方言**（js-yaml `JSON_SCHEMA` + `!!js` tag、顶层数组、映射条目）立即重新解析；解析失败即把结果改写为模型可见的错误反馈（含行号与修复提示：Windows 路径要么不加引号，要么双引号内双反斜杠）。读类调用不阻塞——诊断以非阻塞上下文附带，agent 仍能读到正文去修复。这把"写坏 patch 文件 → 下次插件更新 trial 才爆炸"的问题提前到了编辑当场。
+- **release-gate**：拦截 dsh 包目录里的 `git tag`（创建），先跑发布门禁审计（L1 补丁解析 + L2 package.json 官方需求清单 + 冒烟加载；`--profile` 可追加 L3 组合体检），有 error 级发现即拒绝并给出报告——"开发完测试完打 tag 之前"的强制诊断。命令行等价物：`npm run release-check`（`scripts/release-check.mjs` 可复制到其他插件仓库复用）。门禁只拦 error；组合体检的 warning（含宿主提供的 unknown 类 orphan）不阻塞发版。
 
 已知限制：`\n`、`\P` 等**合法** YAML 转义不会抛错，但会把双引号里的 Windows 路径静默破坏成带换行的值——这类"能启动但值坏了"的场景不在 v1 拦截范围，请按提示的两种写法书写路径。
 

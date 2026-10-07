@@ -61,6 +61,10 @@ node -e "import('file:///C:/Users/Y/.dsh/profiles/desktop/node_modules/dshmarket
 | `orderConflicts` + `suggestedOrder` | before/after 规则冲突；LOOT 式建议顺序 | 冲突时采纳建议顺序或手动调停 |
 | `residuals` | 中断安装的残留目录 | 清理前与用户确认 |
 
+## L4 · 发布门禁（打 tag 前）
+
+dsh-native-hooks 内置 `release-gate` 钩子：PreToolUse 拦截 dsh 包目录里的 `git tag`（创建），先自动跑 L1+L2（dshmarket 可达时含 L3），失败即拒绝并给出完整报告。也可以在仓库里显式执行 `npm run release-check`（把 scripts/release-check.mjs 复制到其他插件仓库即可复用，`--profile <dir>` 追加 L3）。门禁只拦 error；warning（含组合体检的 unknown 类 orphan）不阻塞发版。
+
 ## 边界与配合
 
 - desktop profile **不能用** `dsh --dump-config`（CLI 拒绝保留 profile）；L3 是它在命令行的等价物。
